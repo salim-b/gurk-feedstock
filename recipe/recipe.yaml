@@ -16,18 +16,15 @@ build:
       CARGO_PROFILE_RELEASE_LTO: fat
       CARGO_PROFILE_RELEASE_STRIP: symbols
       OPENSSL_NO_VENDOR: "1"
+    interpreter: nu
     content:
-      # NOTE: we force using the host's (conda-forge's) OpenSSL lib dir for the `libsqlite3-sys` dependency unless on macOS where we use the OS' native Security Framework 
-      - if: linux
-        then: export OPENSSL_DIR="$PREFIX"
-      - if: unix
-        then:
-          - cargo auditable install --path=. --root="$PREFIX" --no-track --locked --bins
-      - if: win
-        then:
-          - set "OPENSSL_DIR=%LIBRARY_PREFIX%"
-          - cargo auditable install --path=. --root="%LIBRARY_PREFIX%" --no-track --locked --bins
-      - cargo-bundle-licenses --format=yaml --output=./THIRDPARTY.yml
+      - let prefix = $env.LIBRARY_PREFIX? | default $env.PREFIX
+      # NOTE: we force using the host's (conda-forge's) OpenSSL lib dir for the `libsqlite3-sys` dependency unless on macOS where the OS' native Security Framework is used instead 
+      - if: not osx
+        then: $env.OPENSSL_DIR = ($prefix)
+      # build main app and generate license data
+      - cargo auditable install --path=. --root=($prefix) --no-track --locked --bins
+      - cargo-bundle-licenses --format=yaml --output=THIRDPARTY.yml
 
 requirements:
   build:
@@ -37,6 +34,7 @@ requirements:
     - cargo-auditable
     - cargo-bundle-licenses
     - libprotobuf
+    - nushell
     - perl
     - pkg-config
   host:
